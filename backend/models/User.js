@@ -6,32 +6,30 @@ const User = sequelize.define("User", {
     type: DataTypes.STRING,
     allowNull: false,
   },
-
   email: {
     type: DataTypes.STRING,
     allowNull: false,
     unique: true,
   },
-
   phone: {
     type: DataTypes.STRING,
     allowNull: false,
   },
-
   password: {
     type: DataTypes.STRING,
     allowNull: false,
   },
-
   role: {
-    type: DataTypes.ENUM(
-      "admin",
-      "doctor",
-      "patient"
-    ),
+    type: DataTypes.ENUM("admin", "doctor", "patient"),
     allowNull: false,
     defaultValue: "patient",
   },
+  specialization: {           // ← Added
+    type: DataTypes.STRING,
+    allowNull: true,
+  }
+}, {
+  timestamps: true
 });
 
 module.exports = User;

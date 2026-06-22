@@ -2,23 +2,23 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import DashboardLayout from "../layouts/DashboardLayout";
 import { toast } from "react-toastify";
+import { useTheme } from "../context/ThemeContext";   // ← Added
 
 function AdminDashboard() {
+  const { isDarkMode } = useTheme();   // ← Global Theme Hook
+
   const [users, setUsers] = useState([]);
 
-  const [doctorForm, setDoctorForm] =
-    useState({
-      fullname: "",
-      email: "",
-      phone: "",
-      password: "",
-    });
-  const [editingDoctorId,
-    setEditingDoctorId] =
-    useState(null);
-  const user = JSON.parse(
-    localStorage.getItem("user")
-  );
+  const [doctorForm, setDoctorForm] = useState({
+    fullname: "",
+    email: "",
+    phone: "",
+    password: "",
+  });
+
+  const [editingDoctorId, setEditingDoctorId] = useState(null);
+
+  const user = JSON.parse(localStorage.getItem("user"));
 
   // RBAC
   if (!user) {
@@ -43,186 +43,111 @@ function AdminDashboard() {
 
   const fetchUsers = async () => {
     try {
-      const token =
-        localStorage.getItem("token");
-
-      const response =
-        await axios.get(
-          "http://localhost:5000/api/auth/users",
-          {
-            headers: {
-              Authorization:
-                `Bearer ${token}`,
-            },
-          }
-        );
-
+      const token = localStorage.getItem("token");
+      const response = await axios.get(
+        "http://localhost:5000/api/auth/users",
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
       setUsers(response.data);
     } catch (error) {
       console.log(error);
-      toast.error(
-        "Failed to load users"
-      );
+      toast.error("Failed to load users");
     }
   };
 
   const createDoctor = async () => {
     try {
-      const token =
-        localStorage.getItem("token");
-
+      const token = localStorage.getItem("token");
       await axios.post(
         "http://localhost:5000/api/admin/doctors",
         doctorForm,
         {
-          headers: {
-            Authorization:
-              `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
 
-      toast.success(
-        "Doctor Added Successfully"
-      );
-
-      setDoctorForm({
-        fullname: "",
-        email: "",
-        phone: "",
-        password: "",
-      });
-
+      toast.success("Doctor Added Successfully");
+      setDoctorForm({ fullname: "", email: "", phone: "", password: "" });
       fetchUsers();
     } catch (error) {
-      toast.error(
-        error.response?.data?.message ||
-        "Failed To Add Doctor"
-      );
+      toast.error(error.response?.data?.message || "Failed To Add Doctor");
     }
   };
 
   const deleteDoctor = async (id) => {
-    if (
-      !window.confirm(
-        "Delete this doctor?"
-      )
-    )
-      return;
+    if (!window.confirm("Delete this doctor?")) return;
 
     try {
-      const token =
-        localStorage.getItem("token");
-
+      const token = localStorage.getItem("token");
       await axios.delete(
         `http://localhost:5000/api/admin/doctors/${id}`,
         {
-          headers: {
-            Authorization:
-              `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
 
-      toast.success(
-        "Doctor Deleted Successfully"
-      );
-
+      toast.success("Doctor Deleted Successfully");
       fetchUsers();
     } catch (error) {
-      toast.error(
-        "Failed To Delete Doctor"
-      );
+      toast.error("Failed To Delete Doctor");
     }
   };
-  const editDoctor = (doctor) => {
-    setEditingDoctorId(
-      doctor.id
-    );
 
+  const editDoctor = (doctor) => {
+    setEditingDoctorId(doctor.id);
     setDoctorForm({
-      fullname:
-        doctor.fullname,
+      fullname: doctor.fullname,
       email: doctor.email,
       phone: doctor.phone,
       password: "",
     });
   };
+
   const updateDoctor = async () => {
     try {
-      const token =
-        localStorage.getItem("token");
-
+      const token = localStorage.getItem("token");
       await axios.put(
         `http://localhost:5000/api/admin/doctors/${editingDoctorId}`,
         {
-          fullname:
-            doctorForm.fullname,
-          email:
-            doctorForm.email,
-          phone:
-            doctorForm.phone,
+          fullname: doctorForm.fullname,
+          email: doctorForm.email,
+          phone: doctorForm.phone,
         },
         {
-          headers: {
-            Authorization:
-              `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
 
-      toast.success(
-        "Doctor Updated Successfully"
-      );
-
+      toast.success("Doctor Updated Successfully");
       setEditingDoctorId(null);
-
-      setDoctorForm({
-        fullname: "",
-        email: "",
-        phone: "",
-        password: "",
-      });
-
+      setDoctorForm({ fullname: "", email: "", phone: "", password: "" });
       fetchUsers();
     } catch (error) {
-      console.log(error);
-
-      toast.error(
-        "Failed To Update Doctor"
-      );
+      toast.error("Failed To Update Doctor");
     }
   };
 
-  const doctors = users.filter(
-    (u) => u.role === "doctor"
-  );
-
-  const patients = users.filter(
-    (u) => u.role === "patient"
-  );
+  const doctors = users.filter((u) => u.role === "doctor");
+  const patients = users.filter((u) => u.role === "patient");
 
   return (
     <DashboardLayout role="Admin">
-      <div className="container-fluid">
+      <div className={`container-fluid ${isDarkMode ? 'text-light' : ''}`}>
 
         {/* Welcome */}
-        <div className="card shadow border-0 mb-4">
+        <div className={`card shadow border-0 mb-4 ${isDarkMode ? 'bg-dark text-light' : ''}`}>
           <div className="card-body">
-            <h2>
-              👨‍💼 Welcome {user.fullname}
-            </h2>
-
-            <p className="text-muted">
-              Manage Doctors,
-              Patients and Users
+            <h2>👨‍💼 Welcome {user.fullname}</h2>
+            <p className={`${isDarkMode ? 'text-light-50' : 'text-muted'}`}>
+              Manage Doctors, Patients and Users
             </p>
           </div>
         </div>
 
         {/* Statistics */}
         <div className="row g-3 mb-4">
-
           <div className="col-md-4">
             <div className="card bg-primary text-white shadow">
               <div className="card-body text-center">
@@ -249,132 +174,77 @@ function AdminDashboard() {
               </div>
             </div>
           </div>
-
         </div>
 
         {/* Add Doctor */}
-        <div className="card shadow border-0 mb-4">
-
+        <div className={`card shadow border-0 mb-4 ${isDarkMode ? 'bg-dark text-light' : ''}`}>
           <div className="card-header bg-success text-white">
-            <h4 className="mb-0">
-              ➕ Add Doctor
-            </h4>
+            <h4 className="mb-0">Add Doctor</h4>
           </div>
 
           <div className="card-body">
-
             <div className="row g-2">
-
               <div className="col-md-3">
                 <input
                   type="text"
-                  className="form-control"
+                  className={`form-control ${isDarkMode ? 'bg-dark text-light' : ''}`}
                   placeholder="Full Name"
-                  value={
-                    doctorForm.fullname
-                  }
-                  onChange={(e) =>
-                    setDoctorForm({
-                      ...doctorForm,
-                      fullname:
-                        e.target.value,
-                    })
-                  }
+                  value={doctorForm.fullname}
+                  onChange={(e) => setDoctorForm({ ...doctorForm, fullname: e.target.value })}
                 />
               </div>
 
               <div className="col-md-3">
                 <input
                   type="email"
-                  className="form-control"
+                  className={`form-control ${isDarkMode ? 'bg-dark text-light' : ''}`}
                   placeholder="Email"
-                  value={
-                    doctorForm.email
-                  }
-                  onChange={(e) =>
-                    setDoctorForm({
-                      ...doctorForm,
-                      email:
-                        e.target.value,
-                    })
-                  }
+                  value={doctorForm.email}
+                  onChange={(e) => setDoctorForm({ ...doctorForm, email: e.target.value })}
                 />
               </div>
 
               <div className="col-md-2">
                 <input
                   type="text"
-                  className="form-control"
+                  className={`form-control ${isDarkMode ? 'bg-dark text-light' : ''}`}
                   placeholder="Phone"
-                  value={
-                    doctorForm.phone
-                  }
-                  onChange={(e) =>
-                    setDoctorForm({
-                      ...doctorForm,
-                      phone:
-                        e.target.value,
-                    })
-                  }
+                  value={doctorForm.phone}
+                  onChange={(e) => setDoctorForm({ ...doctorForm, phone: e.target.value })}
                 />
               </div>
 
               <div className="col-md-2">
                 <input
                   type="password"
-                  className="form-control"
+                  className={`form-control ${isDarkMode ? 'bg-dark text-light' : ''}`}
                   placeholder="Password"
-                  value={
-                    doctorForm.password
-                  }
-                  onChange={(e) =>
-                    setDoctorForm({
-                      ...doctorForm,
-                      password:
-                        e.target.value,
-                    })
-                  }
+                  value={doctorForm.password}
+                  onChange={(e) => setDoctorForm({ ...doctorForm, password: e.target.value })}
                 />
               </div>
 
               <div className="col-md-2">
                 <button
-                  className={`btn w-100 ${editingDoctorId
-                    ? "btn-warning"
-                    : "btn-success"
-                    }`}
-                  onClick={
-                    editingDoctorId
-                      ? updateDoctor
-                      : createDoctor
-                  }
+                  className={`btn w-100 ${editingDoctorId ? "btn-warning" : "btn-success"}`}
+                  onClick={editingDoctorId ? updateDoctor : createDoctor}
                 >
-                  {editingDoctorId
-                    ? "Update Doctor"
-                    : "Add Doctor"}
+                  {editingDoctorId ? "Update Doctor" : "Add Doctor"}
                 </button>
               </div>
-
             </div>
-
           </div>
-
         </div>
 
         {/* Users Table */}
-        <div className="card shadow border-0">
-
+        <div className={`card shadow border-0 ${isDarkMode ? 'bg-dark text-light' : ''}`}>
           <div className="card-header bg-dark text-white">
-            <h4 className="mb-0">
-              👥 All Users
-            </h4>
+            <h4 className="mb-0">Users</h4>
           </div>
 
           <div className="card-body table-responsive">
-
-            <table className="table table-hover">
-
-              <thead className="table-light">
+            <table className={`table ${isDarkMode ? 'table-dark' : 'table-hover'}`}>
+              <thead className={isDarkMode ? 'table-dark' : 'table-light'}>
                 <tr>
                   <th>ID</th>
                   <th>Full Name</th>
@@ -386,57 +256,38 @@ function AdminDashboard() {
               </thead>
 
               <tbody>
-
                 {users.length > 0 ? (
-                  users.map((user) => (
-                    <tr key={user.id}>
-
-                      <td>{user.id}</td>
-
-                      <td>
-                        {user.fullname}
-                      </td>
-
-                      <td>
-                        {user.email}
-                      </td>
-
-                      <td>
-                        {user.phone}
-                      </td>
-
+                  users.map((userItem) => (
+                    <tr key={userItem.id}>
+                      <td>{userItem.id}</td>
+                      <td>{userItem.fullname}</td>
+                      <td>{userItem.email}</td>
+                      <td>{userItem.phone}</td>
                       <td>
                         <span
-                          className={`badge ${user.role ===
-                            "admin"
-                            ? "bg-danger"
-                            : user.role ===
-                              "doctor"
+                          className={`badge ${
+                            userItem.role === "admin"
+                              ? "bg-danger"
+                              : userItem.role === "doctor"
                               ? "bg-success"
                               : "bg-primary"
-                            }`}
+                          }`}
                         >
-                          {user.role}
+                          {userItem.role}
                         </span>
                       </td>
-
                       <td>
-                        {user.role === "doctor" ? (
+                        {userItem.role === "doctor" ? (
                           <>
                             <button
                               className="btn btn-warning btn-sm me-2"
-                              onClick={() =>
-                                editDoctor(user)
-                              }
+                              onClick={() => editDoctor(userItem)}
                             >
                               Edit
                             </button>
-
                             <button
                               className="btn btn-danger btn-sm"
-                              onClick={() =>
-                                deleteDoctor(user.id)
-                              }
+                              onClick={() => deleteDoctor(userItem.id)}
                             >
                               Delete
                             </button>
@@ -445,28 +296,19 @@ function AdminDashboard() {
                           "-"
                         )}
                       </td>
-
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td
-                      colSpan="6"
-                      className="text-center"
-                    >
+                    <td colSpan="6" className="text-center">
                       No Users Found
                     </td>
                   </tr>
                 )}
-
               </tbody>
-
             </table>
-
           </div>
-
         </div>
-
       </div>
     </DashboardLayout>
   );
