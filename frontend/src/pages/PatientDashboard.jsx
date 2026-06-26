@@ -9,7 +9,14 @@ function PatientDashboard() {
 
   const [doctors, setDoctors] = useState([]);
   const [filteredDoctors, setFilteredDoctors] = useState([]);
+  
+  const [searchTerm, setSearchTerm] = useState("");
   const [selectedSpecialization, setSelectedSpecialization] = useState("All");
+  const [sortConfig, setSortConfig] = useState({ key: "fullname", direction: "asc" });
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
 
   const [appointment, setAppointment] = useState({
     doctorId: "",
@@ -21,13 +28,8 @@ function PatientDashboard() {
 
   const user = JSON.parse(localStorage.getItem("user"));
 
-  // RBAC Check
   if (!user || user.role !== "patient") {
-    return (
-      <div className="container mt-5">
-        <h3>Access Denied - Patient Only</h3>
-      </div>
-    );
+    return <div className="container mt-5"><h3>Access Denied - Patient Only</h3></div>;
   }
 
   useEffect(() => {
@@ -35,27 +37,40 @@ function PatientDashboard() {
     fetchMyAppointments();
   }, []);
 
-  // Filter doctors whenever specialization or doctors list changes
+  // Filter, Search & Sort Logic
   useEffect(() => {
-    if (selectedSpecialization === "All") {
-      setFilteredDoctors(doctors);
-    } else {
-      const filtered = doctors.filter(
-        (doctor) => doctor.specialization === selectedSpecialization
+    let result = [...doctors];
+
+    // Search by name
+    if (searchTerm) {
+      result = result.filter(doctor =>
+        doctor.fullname?.toLowerCase().includes(searchTerm.toLowerCase())
       );
-      setFilteredDoctors(filtered);
     }
-  }, [doctors, selectedSpecialization]);
+
+    // Filter by Specialization
+    if (selectedSpecialization !== "All") {
+      result = result.filter(doctor => doctor.specialization === selectedSpecialization);
+    }
+
+    // Sorting
+    if (sortConfig.key) {
+      result.sort((a, b) => {
+        if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    setFilteredDoctors(result);
+  }, [doctors, searchTerm, selectedSpecialization, sortConfig]);
 
   const fetchDoctors = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.get(
-        "http://localhost:5000/api/auth/doctors",
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      const response = await axios.get("http://localhost:5000/api/auth/doctors", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       setDoctors(response.data);
     } catch (error) {
       console.log(error);
@@ -68,14 +83,20 @@ function PatientDashboard() {
       const token = localStorage.getItem("token");
       const response = await axios.get(
         `http://localhost:5000/api/appointments/patient/${user.email}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
       setMyAppointments(response.data);
     } catch (error) {
       console.log(error);
     }
+  };
+
+  const requestSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
   };
 
   const bookAppointment = async () => {
@@ -85,37 +106,33 @@ function PatientDashboard() {
 
     try {
       const token = localStorage.getItem("token");
-      await axios.post(
-        "http://localhost:5000/api/appointments",
-        {
-          patientName: user.fullname,
-          patientEmail: user.email,
-          doctorId: appointment.doctorId,
-          doctorName: appointment.doctorName,
-          appointmentDate: appointment.appointmentDate,
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      await axios.post("http://localhost:5000/api/appointments", {
+        patientName: user.fullname,
+        patientEmail: user.email,
+        doctorId: appointment.doctorId,
+        doctorName: appointment.doctorName,
+        appointmentDate: appointment.appointmentDate,
+      }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
       toast.success("Appointment Booked Successfully");
       fetchMyAppointments();
-
-      setAppointment({
-        doctorId: "",
-        doctorName: "",
-        appointmentDate: "",
-      });
+      setAppointment({ doctorId: "", doctorName: "", appointmentDate: "" });
     } catch (error) {
       toast.error(error.response?.data?.message || "Booking Failed");
     }
   };
 
+  // Pagination
+  const indexOfLast = currentPage * itemsPerPage;
+  const indexOfFirst = indexOfLast - itemsPerPage;
+  const currentDoctors = filteredDoctors.slice(indexOfFirst, indexOfLast);
+  const totalPages = Math.ceil(filteredDoctors.length / itemsPerPage);
+
   const pendingCount = myAppointments.filter((a) => a.status === "Pending").length;
   const approvedCount = myAppointments.filter((a) => a.status === "Approved").length;
 
-  // Get unique specializations for filter dropdown
   const specializations = ["All", ...new Set(doctors.map(d => d.specialization).filter(Boolean))];
 
   return (
@@ -160,69 +177,67 @@ function PatientDashboard() {
           </div>
         </div>
 
-        {/* Book Appointment Section */}
+        {/* Book Appointment */}
         <div className={`card shadow border-0 ${isDarkMode ? 'bg-dark text-light' : ''}`}>
           <div className="card-header bg-success text-white">
             <h4>📅 Book Appointment</h4>
           </div>
 
           <div className="card-body">
-            {/* Specialization Filter */}
-            <div className="mb-3">
-              <label className="form-label">Select Specialization</label>
-              <select
-                className={`form-select ${isDarkMode ? 'bg-dark text-light' : ''}`}
-                value={selectedSpecialization}
-                onChange={(e) => setSelectedSpecialization(e.target.value)}
-              >
-                {specializations.map((spec) => (
-                  <option key={spec} value={spec}>
-                    {spec}
-                  </option>
-                ))}
-              </select>
+            <div className="row mb-3">
+              <div className="col-md-4">
+                <label className="form-label">Specialization</label>
+                <select
+                  className={`form-select ${isDarkMode ? 'bg-dark text-light' : ''}`}
+                  value={selectedSpecialization}
+                  onChange={(e) => setSelectedSpecialization(e.target.value)}
+                >
+                  {specializations.map(spec => (
+                    <option key={spec} value={spec}>{spec}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="col-md-4">
+                <label className="form-label">Search Doctor</label>
+                <input
+                  type="text"
+                  className={`form-control ${isDarkMode ? 'bg-dark text-light' : ''}`}
+                  placeholder="Search by name..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
             </div>
 
-            {/* Doctor Select */}
-            <div className="mb-3">
-              <label className="form-label">Select Doctor</label>
-              <select
-                className={`form-select ${isDarkMode ? 'bg-dark text-light' : ''}`}
-                value={appointment.doctorId}
-                onChange={(e) => {
-                  const doctor = doctors.find((d) => d.id == e.target.value);
-                  setAppointment({
-                    ...appointment,
-                    doctorId: doctor?.id,
-                    doctorName: doctor?.fullname,
-                  });
-                }}
-              >
-                <option value="">Select Doctor</option>
-                {filteredDoctors.map((doctor) => (
-                  <option key={doctor.id} value={doctor.id}>
-                    {doctor.fullname} {doctor.specialization ? `(${doctor.specialization})` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <select
+              className={`form-select mb-3 ${isDarkMode ? 'bg-dark text-light' : ''}`}
+              value={appointment.doctorId}
+              onChange={(e) => {
+                const doctor = doctors.find(d => d.id == e.target.value);
+                setAppointment({
+                  ...appointment,
+                  doctorId: doctor?.id,
+                  doctorName: doctor?.fullname,
+                });
+              }}
+            >
+              <option value="">Select Doctor</option>
+              {currentDoctors.map(doctor => (
+                <option key={doctor.id} value={doctor.id}>
+                  {doctor.fullname} {doctor.specialization ? `(${doctor.specialization})` : ''}
+                </option>
+              ))}
+            </select>
 
             <input
               type="date"
               className={`form-control mb-3 ${isDarkMode ? 'bg-dark text-light' : ''}`}
               value={appointment.appointmentDate}
-              onChange={(e) =>
-                setAppointment({
-                  ...appointment,
-                  appointmentDate: e.target.value,
-                })
-              }
+              onChange={(e) => setAppointment({ ...appointment, appointmentDate: e.target.value })}
             />
 
-            <button
-              className="btn btn-success w-100"
-              onClick={bookAppointment}
-            >
+            <button className="btn btn-success w-100" onClick={bookAppointment}>
               Book Appointment
             </button>
           </div>
@@ -250,15 +265,7 @@ function PatientDashboard() {
                       <td>{appt.doctorName}</td>
                       <td>{appt.appointmentDate}</td>
                       <td>
-                        <span
-                          className={`badge ${
-                            appt.status === "Approved"
-                              ? "bg-success"
-                              : appt.status === "Rejected"
-                              ? "bg-danger"
-                              : "bg-warning text-dark"
-                          }`}
-                        >
+                        <span className={`badge ${appt.status === "Approved" ? "bg-success" : appt.status === "Rejected" ? "bg-danger" : "bg-warning text-dark"}`}>
                           {appt.status}
                         </span>
                       </td>
@@ -266,9 +273,7 @@ function PatientDashboard() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="3" className="text-center">
-                      No Appointments Found
-                    </td>
+                    <td colSpan="3" className="text-center">No Appointments Found</td>
                   </tr>
                 )}
               </tbody>
