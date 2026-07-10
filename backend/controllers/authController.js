@@ -1,6 +1,7 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const emailService = require("../utils/emailService");
 
 // Register
 exports.register = async (req, res) => {
@@ -28,15 +29,19 @@ exports.register = async (req, res) => {
       phone,
       password: hashedPassword,
       role: role || "patient",
-      specialization: role === "doctor" ? specialization : null   // ← Key Logic
+      specialization: role === "doctor" ? specialization : null
     });
+
+    // Send Welcome Email
+    await emailService.sendWelcomeEmail(email, fullname);
 
     res.status(201).json({
       success: true,
-      message: "Registration Successful",
+      message: "Registration Successful. Welcome email sent!",
       user
     });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -76,7 +81,7 @@ exports.login = async (req, res) => {
   }
 };
 
-// Get Doctors with Specialization
+// Get Doctors
 exports.getDoctors = async (req, res) => {
   try {
     const doctors = await User.findAll({

@@ -9,12 +9,10 @@ function PatientDashboard() {
 
   const [doctors, setDoctors] = useState([]);
   const [filteredDoctors, setFilteredDoctors] = useState([]);
-  
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSpecialization, setSelectedSpecialization] = useState("All");
   const [sortConfig, setSortConfig] = useState({ key: "fullname", direction: "asc" });
 
-  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
@@ -37,23 +35,19 @@ function PatientDashboard() {
     fetchMyAppointments();
   }, []);
 
-  // Filter, Search & Sort Logic
   useEffect(() => {
     let result = [...doctors];
 
-    // Search by name
     if (searchTerm) {
       result = result.filter(doctor =>
         doctor.fullname?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
-    // Filter by Specialization
     if (selectedSpecialization !== "All") {
       result = result.filter(doctor => doctor.specialization === selectedSpecialization);
     }
 
-    // Sorting
     if (sortConfig.key) {
       result.sort((a, b) => {
         if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1;
@@ -73,7 +67,6 @@ function PatientDashboard() {
       });
       setDoctors(response.data);
     } catch (error) {
-      console.log(error);
       toast.error("Failed to load doctors");
     }
   };
@@ -124,7 +117,6 @@ function PatientDashboard() {
     }
   };
 
-  // Pagination
   const indexOfLast = currentPage * itemsPerPage;
   const indexOfFirst = indexOfLast - itemsPerPage;
   const currentDoctors = filteredDoctors.slice(indexOfFirst, indexOfLast);
@@ -186,42 +178,22 @@ function PatientDashboard() {
           <div className="card-body">
             <div className="row mb-3">
               <div className="col-md-4">
-                <label className="form-label">Specialization</label>
-                <select
-                  className={`form-select ${isDarkMode ? 'bg-dark text-light' : ''}`}
-                  value={selectedSpecialization}
-                  onChange={(e) => setSelectedSpecialization(e.target.value)}
-                >
-                  {specializations.map(spec => (
-                    <option key={spec} value={spec}>{spec}</option>
-                  ))}
+                <label>Specialization</label>
+                <select className={`form-select ${isDarkMode ? 'bg-dark text-light' : ''}`} value={selectedSpecialization} onChange={(e) => setSelectedSpecialization(e.target.value)}>
+                  {specializations.map(spec => <option key={spec} value={spec}>{spec}</option>)}
                 </select>
               </div>
 
               <div className="col-md-4">
-                <label className="form-label">Search Doctor</label>
-                <input
-                  type="text"
-                  className={`form-control ${isDarkMode ? 'bg-dark text-light' : ''}`}
-                  placeholder="Search by name..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
+                <label>Search Doctor</label>
+                <input type="text" className={`form-control ${isDarkMode ? 'bg-dark text-light' : ''}`} placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
               </div>
             </div>
 
-            <select
-              className={`form-select mb-3 ${isDarkMode ? 'bg-dark text-light' : ''}`}
-              value={appointment.doctorId}
-              onChange={(e) => {
-                const doctor = doctors.find(d => d.id == e.target.value);
-                setAppointment({
-                  ...appointment,
-                  doctorId: doctor?.id,
-                  doctorName: doctor?.fullname,
-                });
-              }}
-            >
+            <select className={`form-select mb-3 ${isDarkMode ? 'bg-dark text-light' : ''}`} value={appointment.doctorId} onChange={(e) => {
+              const doctor = doctors.find(d => d.id == e.target.value);
+              setAppointment({ ...appointment, doctorId: doctor?.id, doctorName: doctor?.fullname });
+            }}>
               <option value="">Select Doctor</option>
               {currentDoctors.map(doctor => (
                 <option key={doctor.id} value={doctor.id}>
@@ -230,16 +202,36 @@ function PatientDashboard() {
               ))}
             </select>
 
-            <input
-              type="date"
-              className={`form-control mb-3 ${isDarkMode ? 'bg-dark text-light' : ''}`}
-              value={appointment.appointmentDate}
-              onChange={(e) => setAppointment({ ...appointment, appointmentDate: e.target.value })}
-            />
+            <input type="date" className={`form-control mb-3 ${isDarkMode ? 'bg-dark text-light' : ''}`} value={appointment.appointmentDate} onChange={(e) => setAppointment({ ...appointment, appointmentDate: e.target.value })} />
 
-            <button className="btn btn-success w-100" onClick={bookAppointment}>
-              Book Appointment
-            </button>
+            <button className="btn btn-success w-100" onClick={bookAppointment}>Book Appointment</button>
+          </div>
+        </div>
+
+        {/* My Documents - PDF Download */}
+        <div className={`card shadow border-0 mt-4 ${isDarkMode ? 'bg-dark text-light' : ''}`}>
+          <div className="card-header bg-info text-white">
+            <h4>📄 My Documents</h4>
+          </div>
+          <div className="card-body">
+            {user.documents && user.documents.length > 0 ? (
+              user.documents.map((doc, index) => (
+                <div key={index} className="d-flex justify-content-between align-items-center p-3 border-bottom">
+                  <div>
+                    <strong>{doc.filename}</strong>
+                    <small className="d-block text-muted">{new Date(doc.uploadedAt).toLocaleDateString()}</small>
+                  </div>
+                  <button 
+                    className="btn btn-primary btn-sm"
+                    onClick={() => window.open(`http://localhost:5000/api/documents/download/${doc.filename}`, '_blank')}
+                  >
+                    Download PDF
+                  </button>
+                </div>
+              ))
+            ) : (
+              <p className="text-center text-muted py-4">No documents uploaded yet.</p>
+            )}
           </div>
         </div>
 
@@ -248,7 +240,6 @@ function PatientDashboard() {
           <div className="card-header bg-primary text-white">
             <h4>📋 My Appointments</h4>
           </div>
-
           <div className="card-body table-responsive">
             <table className={`table ${isDarkMode ? 'table-dark' : 'table-hover'}`}>
               <thead>
@@ -259,22 +250,18 @@ function PatientDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {myAppointments.length > 0 ? (
-                  myAppointments.map((appt) => (
-                    <tr key={appt.id}>
-                      <td>{appt.doctorName}</td>
-                      <td>{appt.appointmentDate}</td>
-                      <td>
-                        <span className={`badge ${appt.status === "Approved" ? "bg-success" : appt.status === "Rejected" ? "bg-danger" : "bg-warning text-dark"}`}>
-                          {appt.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="3" className="text-center">No Appointments Found</td>
+                {myAppointments.length > 0 ? myAppointments.map((appt) => (
+                  <tr key={appt.id}>
+                    <td>{appt.doctorName}</td>
+                    <td>{appt.appointmentDate}</td>
+                    <td>
+                      <span className={`badge ${appt.status === "Approved" ? "bg-success" : appt.status === "Rejected" ? "bg-danger" : "bg-warning text-dark"}`}>
+                        {appt.status}
+                      </span>
+                    </td>
                   </tr>
+                )) : (
+                  <tr><td colSpan="3" className="text-center">No Appointments Found</td></tr>
                 )}
               </tbody>
             </table>

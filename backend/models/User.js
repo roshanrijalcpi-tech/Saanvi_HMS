@@ -24,9 +24,13 @@ const User = sequelize.define("User", {
     allowNull: false,
     defaultValue: "patient",
   },
-  specialization: {           // ← Added
+  specialization: {
     type: DataTypes.STRING,
     allowNull: true,
+  },
+  documents: {                    // ← NEW FIELD for PDF
+    type: DataTypes.JSON,
+    defaultValue: []              // [{ filename, filepath, uploadedAt }]
   }
 }, {
   timestamps: true
